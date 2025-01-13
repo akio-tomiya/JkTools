@@ -47,6 +47,7 @@ println("Mean: $mean_val, Error: $error_val")
 # Compute susceptibility using predefined keys
 susceptibility, error_sus = jk_meanerror(data, "sus")
 println("Susceptibility: $susceptibility, Error: $error_sus")
+# KEY : mean, sus (susceptibility), bin (Binder cumulant)
 
 # Custom function
 # custom_func = x -> x^2 # this definition is also acceptable.
