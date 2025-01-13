@@ -9,7 +9,7 @@
 
 **Author**: A. Tomiya
 
-JkTools is a simple Julia package for performing Jackknife resampling and estimating statistical errors. This package provides tools to compute Jackknife indices and calculate statistical observables with their errors.
+JkTools is a simple Julia package for performing Jackknife resampling and estimating statistical errors. 
 
 ---
 
