@@ -1,63 +1,127 @@
 # JkTools
 
-[![Build Status](https://github.com/akio/JkTools.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/akio/JkTools.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Build Status](https://app.travis-ci.com/akio/JkTools.jl.svg?branch=main)](https://app.travis-ci.com/akio/JkTools.jl)
-[![Coverage](https://codecov.io/gh/akio/JkTools.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/akio/JkTools.jl)
-[![Coverage](https://coveralls.io/repos/github/akio/JkTools.jl/badge.svg?branch=main)](https://coveralls.io/github/akio/JkTools.jl?branch=main)
-
-# JkTools
-
 **Author**: A. Tomiya
 
-JkTools is a simple Julia package for performing Jackknife resampling and estimating statistical errors. 
+JkTools is a small Julia package for Jackknife resampling and statistical error
+estimation. It is intended for simple analysis workflows such as Monte Carlo
+measurements, where one wants central values and Jackknife errors for primary or
+secondary observables.
 
----
+The package depends only on Julia's standard `Statistics` library.
 
 ## Installation
 
-To use this package, copy the `JkTools` module into your project. It does not require additional dependencies other than the Julia `Statistics` standard library.
+From the Julia package prompt:
 
----
+```julia
+pkg> add https://github.com/akio-tomiya/JkTools
+```
+
+or from Julia code:
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/akio-tomiya/JkTools")
+```
 
 ## Features
 
-- **Jackknife index generation**
-  - `jk_index`: Generate Jackknife index subsets from input data.
-  - `jk_index_set`: Generate Jackknife index subsets from indices or ranges.
-- **Mean and error estimation**
-  - `jk_meanerror`: Compute the mean and Jackknife error for input data.
-  - Supports custom functions and predefined statistical observables (e.g., mean, susceptibility, Binder cumulant).
+- Ordinary leave-one-out Jackknife indices:
+  - `jk_index(data)`
+  - `jk_index_set(index)`
+- Block Jackknife indices:
+  - `jk_block_index(data, block_size)`
+  - `jk_block_index_set(index, block_size)`
+- Jackknife error estimates:
+  - `jk_meanerror(data)`
+  - `jk_meanerror(data, key)`
+  - `jk_meanerror(data, func)`
+- Block Jackknife error estimates:
+  - `jk_block_meanerror(data, block_size)`
+  - `jk_block_meanerror(data, block_size, key)`
+  - `jk_block_meanerror(data, block_size, func)`
 
----
+Supported observable keys are:
 
-## Usage
+```julia
+"mean", "average"          # mean(x)
+"sus", "susceptibility"    # var(x, corrected=false)
+"binder", "bin"            # mean(x .^ 4) / mean(x .^ 2)^2
+```
 
-### Example
+Custom functions should map one sample vector to one scalar observable:
+
+```julia
+x -> mean(x .^ 2)
+x -> var(x, corrected=false)
+```
+
+## Basic Usage
 
 ```julia
 using JkTools
+using Statistics
 
-# Example data
 data = [12.3, 15.6, 14.2, 11.8, 13.7, 16.4, 14.8, 13.1, 12.9, 15.2]
 
-# Compute mean and Jackknife error
-mean_val, error_val = jk_meanerror(data)
-println("Mean: $mean_val, Error: $error_val")
+mean_val, mean_err = jk_meanerror(data)
+println("mean = $mean_val +/- $mean_err")
 
-# Compute susceptibility using predefined keys
-susceptibility, error_sus = jk_meanerror(data, "sus")
-println("Susceptibility: $susceptibility, Error: $error_sus")
-# KEY : mean, sus (susceptibility), bin (Binder cumulant)
+sus_val, sus_err = jk_meanerror(data, "sus")
+println("susceptibility = $sus_val +/- $sus_err")
 
-# Custom function
-# custom_func = x -> x^2 # this definition is also acceptable.
-custom_func(x) = x^2
-custom_mean, custom_error = jk_meanerror(data, custom_func)
-println("Custom Mean: $custom_mean, Custom Error: $custom_error")
+square_val, square_err = jk_meanerror(data, x -> mean(x .^ 2))
+println("mean(x^2) = $square_val +/- $square_err")
 ```
 
----
+For nonlinear observables, the central value is computed from the full sample,
+while the error is computed from the leave-one-out Jackknife samples.
+
+## Jackknife Indices
+
+```julia
+jk_index_set(1:4)
+# [[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]]
+
+jk_index([10.0, 20.0, 30.0])
+# [[2, 3], [1, 3], [1, 2]]
+```
+
+## Block Jackknife
+
+Block Jackknife removes one contiguous block at a time. This is useful when the
+data have autocorrelation, for example in Markov-chain Monte Carlo measurements.
+
+```julia
+block_size = 2
+
+block_mean, block_err = jk_block_meanerror(data, block_size)
+println("block mean = $block_mean +/- $block_err")
+
+block_sus, block_sus_err = jk_block_meanerror(data, block_size, "sus")
+println("block susceptibility = $block_sus +/- $block_sus_err")
+```
+
+If `length(data)` is not divisible by `block_size`, JkTools drops the initial
+remainder before making equal-size blocks. This is useful when the earliest data
+may be affected by thermalization.
+
+```julia
+jk_block_index_set(1:5, 2)
+# [[4, 5], [2, 3]]
+```
+
+In this example, `1` is dropped, then the kept data are split into `[2, 3]` and
+`[4, 5]`.
+
+At least two full blocks are required after the initial remainder is dropped.
+
+## Input Validation
+
+Ordinary Jackknife requires at least two data points. Block Jackknife requires a
+positive `block_size` and at least two full blocks after dropping the initial
+remainder. Invalid inputs throw `ArgumentError`.
 
 ## License
-This package is distributed under the MIT License.
 
+This package is distributed under the MIT License.
