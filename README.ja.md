@@ -9,6 +9,7 @@ JkTools は、Jackknife resampling と統計誤差評価のための小さな Ju
 セカンダリな物理量の中心値と Jackknife 誤差を求める用途を想定しています。
 
 依存は Julia 標準ライブラリの `Statistics` だけです。
+package のテストは、push と pull request 時に GitHub Actions CI で実行します。
 
 ## インストール
 
@@ -200,6 +201,19 @@ bar(
     xlabel="lambda",
     ylabel="rho(lambda)",
 )
+```
+
+例は次にも置いてあります。
+
+```text
+examples/histogram_errorbars.jl
+```
+
+この例では Plots.jl を使い、中心となる書き方は次です。
+
+```julia
+hist = jk_block_hist(eigenvalues_by_config, block_size; bins=bins, density=true)
+bar(hist.centers, hist.values; yerror=hist.errors)
 ```
 
 ## 入力の検証

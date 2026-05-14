@@ -10,6 +10,7 @@ measurements, where one wants central values and Jackknife errors for primary or
 secondary observables.
 
 The package depends only on Julia's standard `Statistics` library.
+The package test suite is run by GitHub Actions CI on pushes and pull requests.
 
 ## Installation
 
@@ -200,6 +201,19 @@ bar(
     xlabel="lambda",
     ylabel="rho(lambda)",
 )
+```
+
+See also:
+
+```text
+examples/histogram_errorbars.jl
+```
+
+That example uses Plots.jl and contains the core pattern:
+
+```julia
+hist = jk_block_hist(eigenvalues_by_config, block_size; bins=bins, density=true)
+bar(hist.centers, hist.values; yerror=hist.errors)
 ```
 
 ## Input Validation
