@@ -2,6 +2,8 @@
 
 **Author**: A. Tomiya
 
+[Japanese manual](README.ja.md)
+
 JkTools is a small Julia package for Jackknife resampling and statistical error
 estimation. It is intended for simple analysis workflows such as Monte Carlo
 measurements, where one wants central values and Jackknife errors for primary or
@@ -40,6 +42,17 @@ Pkg.add(url="https://github.com/akio-tomiya/JkTools")
   - `jk_block_meanerror(data, block_size)`
   - `jk_block_meanerror(data, block_size, key)`
   - `jk_block_meanerror(data, block_size, func)`
+- Histogram estimates with error bars:
+  - `jk_histogram(samples, edges)`
+  - `jk_histogram(samples; bins=10)`
+  - `jk_hist(samples; bins=10)`
+  - `jk_block_histogram(samples, edges, block_size)`
+  - `jk_block_histogram(samples, block_size; bins=10)`
+  - `jk_block_hist(samples, block_size; bins=10)`
+- English help:
+  - `?jk_meanerror`
+  - `?jk_hist`
+  - `jk_help()`
 
 Supported observable keys are:
 
@@ -54,6 +67,22 @@ Custom functions should map one sample vector to one scalar observable:
 ```julia
 x -> mean(x .^ 2)
 x -> var(x, corrected=false)
+```
+
+## Help
+
+Use Julia help mode to read English docstrings:
+
+```julia
+?jk_meanerror
+?jk_block_meanerror
+?jk_hist
+```
+
+For a short overview:
+
+```julia
+jk_help()
 ```
 
 ## Basic Usage
@@ -115,6 +144,63 @@ In this example, `1` is dropped, then the kept data are split into `[2, 3]` and
 `[4, 5]`.
 
 At least two full blocks are required after the initial remainder is dropped.
+
+## Histograms With Error Bars
+
+`jk_histogram` and `jk_block_histogram` compute one central histogram and one
+Jackknife error for each bin. The input is organized by sample. For example, for
+Dirac eigenvalues, each element can be the eigenvalues measured on one gauge
+configuration.
+
+```julia
+eigenvalues_by_config = [
+    [0.002, 0.011, 0.018],
+    [0.004, 0.010, 0.026],
+    [0.001, 0.016, 0.021],
+]
+
+hist = jk_hist(eigenvalues_by_config; bins=collect(0.0:0.01:0.03))
+
+hist.centers  # bin centers
+hist.values   # bin heights
+hist.errors   # Jackknife error for each bin
+```
+
+Like Julia plotting histogram functions, `bins` may also be an integer:
+
+```julia
+hist = jk_hist(eigenvalues_by_config; bins=20)
+```
+
+Bins use `[edge[i], edge[i+1])`, with the final right edge included. Values
+outside the edges are ignored.
+
+For density-like plots, use `density=true` to divide by bin width, and `scale`
+for any additional normalization factor such as `1 / volume`.
+
+```julia
+volume = 32^3 * 8
+hist = jk_block_hist(eigenvalues_by_config, 2; bins=20, scale=1 / volume, density=true)
+```
+
+JkTools does not depend on a plotting package. With Plots.jl, one possible plot
+is:
+
+```julia
+using Plots
+
+edges = hist.edges
+
+bar(
+    hist.centers,
+    hist.values;
+    yerror=hist.errors,
+    bar_width=edges[2] - edges[1],
+    label=false,
+    xlabel="lambda",
+    ylabel="rho(lambda)",
+)
+```
 
 ## Input Validation
 

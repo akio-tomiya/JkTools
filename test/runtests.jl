@@ -167,4 +167,100 @@ end
         @test_throws ArgumentError jk_block_meanerror([1.0], 1, "mean")
         @test_throws ArgumentError jk_block_meanerror([1.0, 2.0], 2, "mean")
     end
+
+    @testset "histogram jackknife errors" begin
+        samples = [[0.2, 1.2], [0.8, 1.5], [1.1, 2.0]]
+        edges = [0.0, 1.0, 2.0]
+
+        hist = jk_histogram(samples, edges)
+        @test hist.edges == edges
+        @test hist.centers == [0.5, 1.5]
+        @test hist.values ≈ [2 / 3, 4 / 3]
+        @test hist.errors ≈ [1 / 3, 1 / 3]
+
+        scaled = jk_histogram(samples, edges; scale=2.0, density=true)
+        @test scaled.values ≈ [4 / 3, 8 / 3]
+        @test scaled.errors ≈ [2 / 3, 2 / 3]
+
+        flat = jk_histogram([0.2, 0.8, 1.5], edges)
+        @test flat.values ≈ [2 / 3, 1 / 3]
+        @test flat.errors ≈ [1 / 3, 1 / 3]
+    end
+
+    @testset "hist-like histogram API" begin
+        samples = [[0.2, 1.2], [0.8, 1.5], [1.1, 2.0]]
+        edges = [0.0, 1.0, 2.0]
+
+        by_keyword = jk_histogram(samples; bins=edges)
+        by_alias = jk_hist(samples; bins=edges)
+        expected = jk_histogram(samples, edges)
+
+        @test by_keyword == expected
+        @test by_alias == expected
+
+        auto_bins = jk_hist(samples; bins=2)
+        @test auto_bins.edges ≈ [0.2, 1.1, 2.0]
+        @test auto_bins.centers ≈ [0.65, 1.55]
+        @test auto_bins.values ≈ [2 / 3, 4 / 3]
+        @test auto_bins.errors ≈ [1 / 3, 1 / 3]
+    end
+
+    @testset "block histogram jackknife errors" begin
+        samples = [[9.9], [0.2, 1.2], [0.4], [1.4], [1.6]]
+        edges = [0.0, 1.0, 2.0]
+
+        hist = jk_block_histogram(samples, edges, 2)
+        @test hist.edges == edges
+        @test hist.centers == [0.5, 1.5]
+        @test hist.values ≈ [0.5, 0.75]
+        @test hist.errors ≈ [0.5, 0.25]
+
+        scaled = jk_block_histogram(samples, edges, 2; scale=2.0, density=true)
+        @test scaled.values ≈ [1.0, 1.5]
+        @test scaled.errors ≈ [1.0, 0.5]
+    end
+
+    @testset "hist-like block histogram API" begin
+        samples = [[9.9], [0.2, 1.2], [0.4], [1.4], [1.6]]
+        edges = [0.0, 1.0, 2.0]
+
+        by_keyword = jk_block_histogram(samples, 2; bins=edges)
+        by_alias = jk_block_hist(samples, 2; bins=edges)
+        expected = jk_block_histogram(samples, edges, 2)
+
+        @test by_keyword == expected
+        @test by_alias == expected
+    end
+
+    @testset "histogram validation" begin
+        samples = [[0.2, 1.2], [0.8, 1.5], [1.1, 2.0]]
+
+        @test_throws ArgumentError jk_histogram([[0.1]], [0.0, 1.0])
+        @test_throws ArgumentError jk_histogram(samples, [0.0])
+        @test_throws ArgumentError jk_histogram(samples, [0.0, 1.0, 1.0])
+        @test_throws ArgumentError jk_histogram(samples, [0.0, 2.0, 1.0])
+
+        @test_throws ArgumentError jk_block_histogram([[0.1]], [0.0, 1.0], 1)
+        @test_throws ArgumentError jk_block_histogram(samples, [0.0, 1.0], 0)
+        @test_throws ArgumentError jk_block_histogram(samples, [0.0, 1.0], 3)
+        @test_throws ArgumentError jk_block_histogram(samples, [0.0], 1)
+        @test_throws ArgumentError jk_block_histogram(samples, [0.0, 1.0, 1.0], 1)
+
+        @test_throws ArgumentError jk_hist(samples; bins=0)
+        @test_throws ArgumentError jk_hist(samples; bins=-1)
+        @test_throws ArgumentError jk_block_hist(samples, 1; bins=0)
+    end
+
+    @testset "english help" begin
+        help_text = sprint(jk_help)
+
+        @test occursin("JkTools quick help", help_text)
+        @test occursin("Histogram with error bars", help_text)
+        @test !occursin("日本語", help_text)
+        @test !occursin("クイックヘルプ", help_text)
+
+        doc_text = repr("text/plain", @doc jk_hist)
+        @test occursin("Short alias", doc_text)
+        @test !occursin("日本語", doc_text)
+    end
 end
