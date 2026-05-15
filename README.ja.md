@@ -54,13 +54,23 @@ Pkg.add(url="https://github.com/akio-tomiya/JkTools")
   - `?jk_hist`
   - `jk_help()`
 
+通常 API は、`block` keyword を指定するとブロック Jackknife に切り替わります。
+
+```julia
+jk_meanerror(data; block=2)
+jk_meanerror(data, "sus"; block=2)
+jk_hist(eigenvalues_by_config; bins=20, block=2)
+```
+
 使える observable key:
 
 ```julia
 "mean", "average"          # mean(x)
 "sus", "susceptibility"    # var(x, corrected=false)
-"binder", "bin"            # mean(x .^ 4) / mean(x .^ 2)^2
+"binder", "bin"            # Binder ratio: mean(x .^ 4) / mean(x .^ 2)^2
 ```
+
+JkTools では `binder` / `bin` は上の Binder ratio を意味します。
 
 任意関数を渡す場合、その関数は 1 つの sample vector から 1 つの
 スカラー observable を返す必要があります。
@@ -125,11 +135,18 @@ Markov-chain Monte Carlo のようにデータに自己相関がある場合に�
 ```julia
 block_size = 2
 
-block_mean, block_err = jk_block_meanerror(data, block_size)
+block_mean, block_err = jk_meanerror(data; block=block_size)
 println("block mean = $block_mean +/- $block_err")
 
-block_sus, block_sus_err = jk_block_meanerror(data, block_size, "sus")
+block_sus, block_sus_err = jk_meanerror(data, "sus"; block=block_size)
 println("block susceptibility = $block_sus +/- $block_sus_err")
+```
+
+これまでの明示的な書き方もそのまま使えます。
+
+```julia
+jk_block_meanerror(data, block_size)
+jk_block_meanerror(data, block_size, "sus")
 ```
 
 `length(data)` が `block_size` で割り切れない場合、JkTools は先頭側の
@@ -181,8 +198,11 @@ bin は `[edge[i], edge[i+1])` として扱い、最後の右端だけ含めま�
 
 ```julia
 volume = 32^3 * 8
-hist = jk_block_hist(eigenvalues_by_config, 2; bins=20, scale=1 / volume, density=true)
+hist = jk_hist(eigenvalues_by_config; bins=20, block=2, scale=1 / volume, density=true)
 ```
+
+これまでの明示的な `jk_block_hist(eigenvalues_by_config, 2; bins=20)` も
+そのまま使えます。
 
 JkTools は plotting package に依存しません。Plots.jl を使う場合は、
 例えば次のように描画できます。
@@ -212,7 +232,7 @@ examples/histogram_errorbars.jl
 この例では Plots.jl を使い、中心となる書き方は次です。
 
 ```julia
-hist = jk_block_hist(eigenvalues_by_config, block_size; bins=bins, density=true)
+hist = jk_hist(eigenvalues_by_config; bins=bins, block=block_size, density=true)
 bar(hist.centers, hist.values; yerror=hist.errors)
 ```
 

@@ -46,6 +46,8 @@ end
 
         @test jk_index([10.0, 20.0, 30.0]) == [[2, 3], [1, 3], [1, 2]]
         @test jk_index([10, 20, 30]) == [[2, 3], [1, 3], [1, 2]]
+        @test jk_index_set(1:5; block=2) == jk_block_index_set(1:5, 2)
+        @test jk_index([10.0, 20.0, 30.0, 40.0, 50.0]; block=2) == jk_block_index([10.0, 20.0, 30.0, 40.0, 50.0], 2)
     end
 
     @testset "mean jackknife error" begin
@@ -110,6 +112,9 @@ end
         @test_throws ArgumentError jk_block_index_set(1:4, -1)
         @test_throws ArgumentError jk_block_index_set(1:4, 4)
         @test_throws ArgumentError jk_block_index_set(1:3, 5)
+        @test_throws ArgumentError jk_block_index_set(1:4, true)
+        @test_throws ArgumentError jk_block_index_set(1:4, 2.0)
+        @test_throws ArgumentError jk_block_index([10.0, 20.0, 30.0, 40.0], true)
     end
 
     @testset "block mean jackknife error" begin
@@ -117,11 +122,15 @@ end
         expected = block_jackknife_expected(data, 2, mean)
 
         test_result(jk_block_meanerror(data, 2), expected)
+        test_result(jk_meanerror(data; block=2), expected)
         test_result(jk_block_meanerror(data, 2, "mean"), expected)
+        test_result(jk_meanerror(data, "mean"; block=2), expected)
         test_result(jk_block_meanerror(data, 2, "average"), expected)
+        test_result(jk_meanerror(data, "average"; block=2), expected)
 
         uneven_data = [1.0, 2.0, 3.0, 4.0, 5.0]
         test_result(jk_block_meanerror(uneven_data, 2), block_jackknife_expected(uneven_data, 2, mean))
+        test_result(jk_meanerror(uneven_data; block=2), block_jackknife_expected(uneven_data, 2, mean))
     end
 
     @testset "block observable keys" begin
@@ -130,14 +139,19 @@ end
         susceptibility = x -> var(x, corrected=false)
         susceptibility_expected = block_jackknife_expected(data, 2, susceptibility)
         test_result(jk_block_meanerror(data, 2, "sus"), susceptibility_expected)
+        test_result(jk_meanerror(data, "sus"; block=2), susceptibility_expected)
         test_result(jk_block_meanerror(data, 2, "susceptibility"), susceptibility_expected)
+        test_result(jk_meanerror(data, "susceptibility"; block=2), susceptibility_expected)
 
         binder_ratio = x -> mean(x .^ 4) / mean(x .^ 2)^2
         binder_expected = block_jackknife_expected(data, 2, binder_ratio)
         test_result(jk_block_meanerror(data, 2, "binder"), binder_expected)
+        test_result(jk_meanerror(data, "binder"; block=2), binder_expected)
         test_result(jk_block_meanerror(data, 2, "bin"), binder_expected)
+        test_result(jk_meanerror(data, "bin"; block=2), binder_expected)
 
         @test_throws ErrorException jk_block_meanerror(data, 2, "unknown")
+        @test_throws ErrorException jk_meanerror(data, "unknown"; block=2)
     end
 
     @testset "block custom statistic" begin
@@ -145,9 +159,11 @@ end
 
         square_mean = x -> mean(x .^ 2)
         test_result(jk_block_meanerror(data, 2, square_mean), block_jackknife_expected(data, 2, square_mean))
+        test_result(jk_meanerror(data, square_mean; block=2), block_jackknife_expected(data, 2, square_mean))
 
         susceptibility = x -> var(x, corrected=false)
         test_result(jk_block_meanerror(data, 2, susceptibility), block_jackknife_expected(data, 2, susceptibility))
+        test_result(jk_meanerror(data, susceptibility; block=2), block_jackknife_expected(data, 2, susceptibility))
     end
 
     @testset "block real-valued inputs and validation" begin
@@ -166,6 +182,12 @@ end
         @test_throws ArgumentError jk_block_meanerror(Float64[], 1, "mean")
         @test_throws ArgumentError jk_block_meanerror([1.0], 1, "mean")
         @test_throws ArgumentError jk_block_meanerror([1.0, 2.0], 2, "mean")
+        @test_throws ArgumentError jk_meanerror([1.0, 2.0]; block=2)
+        @test_throws ArgumentError jk_meanerror([1.0, 2.0]; block=2.0)
+        @test_throws ArgumentError jk_meanerror([1.0, 2.0, 3.0, 4.0]; block=true)
+        @test_throws ArgumentError jk_index([1.0, 2.0]; block=2.0)
+        @test_throws ArgumentError jk_block_meanerror([1.0, 2.0, 3.0, 4.0], true)
+        @test_throws ArgumentError jk_block_meanerror([1.0, 2.0, 3.0, 4.0], 2.0)
     end
 
     @testset "histogram jackknife errors" begin
@@ -226,14 +248,21 @@ end
 
         by_keyword = jk_block_histogram(samples, 2; bins=edges)
         by_alias = jk_block_hist(samples, 2; bins=edges)
+        by_unified_keyword = jk_histogram(samples; bins=edges, block=2)
+        by_unified_alias = jk_hist(samples; bins=edges, block=2)
+        by_unified_edges = jk_histogram(samples, edges; block=2)
         expected = jk_block_histogram(samples, edges, 2)
 
         @test by_keyword == expected
         @test by_alias == expected
+        @test by_unified_keyword == expected
+        @test by_unified_alias == expected
+        @test by_unified_edges == expected
     end
 
     @testset "histogram validation" begin
         samples = [[0.2, 1.2], [0.8, 1.5], [1.1, 2.0]]
+        edges = [0.0, 1.0, 2.0]
 
         @test_throws ArgumentError jk_histogram([[0.1]], [0.0, 1.0])
         @test_throws ArgumentError jk_histogram(samples, [0.0])
@@ -249,6 +278,11 @@ end
         @test_throws ArgumentError jk_hist(samples; bins=0)
         @test_throws ArgumentError jk_hist(samples; bins=-1)
         @test_throws ArgumentError jk_block_hist(samples, 1; bins=0)
+        @test_throws ArgumentError jk_hist(samples; bins=edges, block=3)
+        @test_throws ArgumentError jk_hist(samples; bins=edges, block=2.0)
+        @test_throws ArgumentError jk_hist(samples; bins=edges, block=true)
+        @test_throws ArgumentError jk_block_hist(samples, true; bins=edges)
+        @test_throws ArgumentError jk_block_hist(samples, 2.0; bins=edges)
     end
 
     @testset "english help" begin
@@ -256,8 +290,15 @@ end
 
         @test occursin("JkTools quick help", help_text)
         @test occursin("Histogram with error bars", help_text)
+        @test occursin("block=2", help_text)
+        @test occursin("Binder ratio", help_text)
+        @test occursin("mean(x .^ 4) / mean(x .^ 2)^2", help_text)
         @test !occursin("日本語", help_text)
         @test !occursin("クイックヘルプ", help_text)
+
+        meanerror_doc = repr("text/plain", @doc jk_meanerror(::AbstractVector{<:Real}, ::String))
+        @test occursin("Binder ratio", meanerror_doc)
+        @test occursin("mean(x .^ 4) / mean(x .^ 2)^2", meanerror_doc)
 
         doc_text = repr("text/plain", @doc jk_hist)
         @test occursin("Short alias", doc_text)

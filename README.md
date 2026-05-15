@@ -55,13 +55,23 @@ Pkg.add(url="https://github.com/akio-tomiya/JkTools")
   - `?jk_hist`
   - `jk_help()`
 
+The ordinary APIs can switch to block Jackknife with the `block` keyword:
+
+```julia
+jk_meanerror(data; block=2)
+jk_meanerror(data, "sus"; block=2)
+jk_hist(eigenvalues_by_config; bins=20, block=2)
+```
+
 Supported observable keys are:
 
 ```julia
 "mean", "average"          # mean(x)
 "sus", "susceptibility"    # var(x, corrected=false)
-"binder", "bin"            # mean(x .^ 4) / mean(x .^ 2)^2
+"binder", "bin"            # Binder ratio: mean(x .^ 4) / mean(x .^ 2)^2
 ```
+
+In JkTools, `binder` and `bin` mean the Binder ratio shown above.
 
 Custom functions should map one sample vector to one scalar observable:
 
@@ -125,11 +135,18 @@ data have autocorrelation, for example in Markov-chain Monte Carlo measurements.
 ```julia
 block_size = 2
 
-block_mean, block_err = jk_block_meanerror(data, block_size)
+block_mean, block_err = jk_meanerror(data; block=block_size)
 println("block mean = $block_mean +/- $block_err")
 
-block_sus, block_sus_err = jk_block_meanerror(data, block_size, "sus")
+block_sus, block_sus_err = jk_meanerror(data, "sus"; block=block_size)
 println("block susceptibility = $block_sus +/- $block_sus_err")
+```
+
+The older explicit form is still supported:
+
+```julia
+jk_block_meanerror(data, block_size)
+jk_block_meanerror(data, block_size, "sus")
 ```
 
 If `length(data)` is not divisible by `block_size`, JkTools drops the initial
@@ -181,8 +198,11 @@ for any additional normalization factor such as `1 / volume`.
 
 ```julia
 volume = 32^3 * 8
-hist = jk_block_hist(eigenvalues_by_config, 2; bins=20, scale=1 / volume, density=true)
+hist = jk_hist(eigenvalues_by_config; bins=20, block=2, scale=1 / volume, density=true)
 ```
+
+The older explicit form `jk_block_hist(eigenvalues_by_config, 2; bins=20)` is
+also still supported.
 
 JkTools does not depend on a plotting package. With Plots.jl, one possible plot
 is:
@@ -212,7 +232,7 @@ examples/histogram_errorbars.jl
 That example uses Plots.jl and contains the core pattern:
 
 ```julia
-hist = jk_block_hist(eigenvalues_by_config, block_size; bins=bins, density=true)
+hist = jk_hist(eigenvalues_by_config; bins=bins, block=block_size, density=true)
 bar(hist.centers, hist.values; yerror=hist.errors)
 ```
 

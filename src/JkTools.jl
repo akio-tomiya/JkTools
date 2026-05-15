@@ -24,18 +24,21 @@ Ordinary Jackknife:
   jk_meanerror(data, key)
   jk_meanerror(data, func)
 
-Block Jackknife:
-  jk_block_meanerror(data, block_size)
-  jk_block_meanerror(data, block_size, key)
-  jk_block_meanerror(data, block_size, func)
+Use block Jackknife by setting the block keyword:
+  jk_meanerror(data; block=2)
+  jk_meanerror(data, key; block=2)
+  jk_meanerror(data, func; block=2)
 
 Histogram with error bars:
   jk_hist(samples; bins=20)
   jk_hist(samples; bins=edges)
-  jk_block_hist(samples, block_size; bins=20)
+  jk_hist(samples; bins=20, block=2)
 
 Supported keys:
-  "mean", "average", "sus", "susceptibility", "binder", "bin"
+  "mean", "average"          -> mean(x)
+  "sus", "susceptibility"    -> var(x, corrected=false)
+  "binder", "bin"            -> Binder ratio, defined here as
+                                mean(x .^ 4) / mean(x .^ 2)^2
 
 Histogram results have:
   hist.edges, hist.centers, hist.values, hist.errors
@@ -44,11 +47,22 @@ Histogram results have:
 """
     jk_help([io::IO=stdout]) -> nothing
 
-Prints a short JkTools help message. `lang` can be `:en`, `:ja`, or `:both`.
+Prints a short English JkTools help message.
 """
 function jk_help(io::IO=stdout)
     print(io, _HELP_EN)
     return nothing
+end
+
+function _require_block_size(block_size; name::String="block_size")
+    block_size isa Integer && !(block_size isa Bool) || throw(ArgumentError("$name must be a positive integer"))
+    block_size >= 1 || throw(ArgumentError("$name must be positive"))
+    return block_size
+end
+
+function _optional_block_size(block)
+    block === nothing && return nothing
+    return _require_block_size(block; name="block")
 end
 
 #=
@@ -60,9 +74,10 @@ jk_meanerror(data,"mean")
 =#
 
 """
-    jk_index(input_data::AbstractVector) -> Vector{Vector{Int}}
+    jk_index(input_data::AbstractVector; block=nothing) -> Vector{Vector{Int}}
 
 Generates Jackknife index subsets directly from the input data.
+Set `block` to an integer to generate block Jackknife index subsets.
 
 Returns:
 `Vector{Vector{Int}}`. Each element is an index set with one data point removed.
@@ -71,26 +86,37 @@ Example:
 ```julia
 jk_index([10.0, 20.0, 30.0])
 # [[2, 3], [1, 3], [1, 2]]
+
+jk_index([10.0, 20.0, 30.0, 40.0]; block=2)
+# [[3, 4], [1, 2]]
 ```
 """
-function jk_index(input_data::AbstractVector)
+function jk_index(input_data::AbstractVector; block=nothing)
     Ndat = length(input_data)
     index = 1:Ndat
-    return jk_index_set(index)
+    block_size = _optional_block_size(block)
+    return block_size === nothing ? jk_index_set(index) : jk_block_index_set(index, block_size)
 end
 
 """
-    jk_index_set(index::AbstractVector{<:Integer}) -> Vector{Vector{Int}}
+    jk_index_set(index::AbstractVector{<:Integer}; block=nothing) -> Vector{Vector{Int}}
 
 Generates subsets of indices for Jackknife resampling from the given array of indices.
+Set `block` to an integer to generate block Jackknife index subsets.
 
 Example:
 ```julia
 jk_index_set(1:4)
 # [[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]]
+
+jk_index_set(1:5; block=2)
+# [[4, 5], [2, 3]]
 ```
 """
-function jk_index_set(index::AbstractVector{<:Integer})
+function jk_index_set(index::AbstractVector{<:Integer}; block=nothing)
+    block_size = _optional_block_size(block)
+    block_size === nothing || return jk_block_index_set(index, block_size)
+
     N = length(index)  # Total number of indices
     subsets = Vector{Vector{Int}}()  # Container for subsets
     sizehint!(subsets, N)
@@ -104,12 +130,12 @@ function jk_index_set(index::AbstractVector{<:Integer})
 end
 
 """
-    jk_index_set(index::UnitRange{Int}) -> Vector{Vector{Int}}
+    jk_index_set(index::UnitRange{Int}; block=nothing) -> Vector{Vector{Int}}
 
 Generates subsets of indices for Jackknife resampling from the given range of indices.
 """
-function jk_index_set(index::UnitRange{Int})
-    return jk_index_set(collect(index))  # Convert range to vector and reuse the function
+function jk_index_set(index::UnitRange{Int}; block=nothing)
+    return jk_index_set(collect(index); block=block)  # Convert range to vector and reuse the function
 end
 
 function _observable_function(KEY::String)
@@ -145,52 +171,64 @@ function _jackknife_meanerror(input_data::AbstractVector{<:Real}, statistic::Fun
     return statistic(input_data), std(JK_values, corrected=false) * sqrt(NJK - 1)
 end
 
+function _jackknife_or_block_meanerror(input_data::AbstractVector{<:Real}, statistic::Function, block)
+    block_size = _optional_block_size(block)
+    return block_size === nothing ?
+        _jackknife_meanerror(input_data, statistic) :
+        _block_jackknife_meanerror(input_data, block_size, statistic)
+end
+
 """
-    jk_meanerror(input_data::AbstractVector{<:Real}) -> Tuple{Real, Float64}
+    jk_meanerror(input_data::AbstractVector{<:Real}; block=nothing) -> Tuple{Real, Float64}
 
 Calculates the mean and Jackknife error for the given data array.
+Set `block` to an integer to use block Jackknife.
 
 Returns:
 `(central_value, error)`.
 """
-function jk_meanerror(input_data::AbstractVector{<:Real})
-    return _jackknife_meanerror(input_data, mean)
+function jk_meanerror(input_data::AbstractVector{<:Real}; block=nothing)
+    return _jackknife_or_block_meanerror(input_data, mean, block)
 end
 
 """
-    jk_meanerror(input_data::AbstractVector{<:Real}, func::Function) -> Tuple{Real, Float64}
+    jk_meanerror(input_data::AbstractVector{<:Real}, func::Function; block=nothing) -> Tuple{Real, Float64}
 
 Calculates the mean and Jackknife error for the given data array using a custom function.
 `func` must map one sample vector to one scalar observable.
+Set `block` to an integer to use block Jackknife.
 
 Example:
 ```julia
 jk_meanerror(data, x -> mean(x .^ 2))
+jk_meanerror(data, x -> mean(x .^ 2); block=2)
 jk_meanerror(data, x -> var(x, corrected=false))
 ```
 """
-function jk_meanerror(input_data::AbstractVector{<:Real}, func::Function)
-    return _jackknife_meanerror(input_data, func)
+function jk_meanerror(input_data::AbstractVector{<:Real}, func::Function; block=nothing)
+    return _jackknife_or_block_meanerror(input_data, func, block)
 end
 
 """
-    jk_meanerror(input_data::AbstractVector{<:Real}, KEY::String) -> Tuple{Real, Float64}
+    jk_meanerror(input_data::AbstractVector{<:Real}, KEY::String; block=nothing) -> Tuple{Real, Float64}
 
 Calculates the mean and Jackknife error for statistical observables based on a specified keyword.
+Set `block` to an integer to use block Jackknife.
 
 Supported keys:
 - `"mean"` or `"average"`: `mean(x)`
 - `"sus"` or `"susceptibility"`: `var(x, corrected=false)`
-- `"binder"` or `"bin"`: `mean(x .^ 4) / mean(x .^ 2)^2`
+- `"binder"` or `"bin"`: Binder ratio, defined in JkTools as
+  `mean(x .^ 4) / mean(x .^ 2)^2`
 
 Unsupported keys throw an error.
 """
-function jk_meanerror(input_data::AbstractVector{<:Real}, KEY::String)
-    return _jackknife_meanerror(input_data, _observable_function(KEY))
+function jk_meanerror(input_data::AbstractVector{<:Real}, KEY::String; block=nothing)
+    return _jackknife_or_block_meanerror(input_data, _observable_function(KEY), block)
 end
 
-function _block_first_kept(n::Integer, block_size::Integer)
-    block_size >= 1 || throw(ArgumentError("block_size must be positive"))
+function _block_first_kept(n::Integer, block_size)
+    block_size = _require_block_size(block_size)
 
     remainder = mod(n, block_size)
     first_kept = remainder + 1
@@ -208,10 +246,8 @@ Generates block Jackknife index subsets directly from the input data.
 If the input length is not divisible by `block_size`, the initial remainder is
 dropped before making equal-size blocks.
 """
-function jk_block_index(input_data::AbstractVector, block_size::Integer)
-    Ndat = length(input_data)
-    index = 1:Ndat
-    return jk_block_index_set(index, block_size)
+function jk_block_index(input_data::AbstractVector, block_size)
+    return jk_index(input_data; block=block_size)
 end
 
 """
@@ -222,7 +258,7 @@ Generates leave-one-block-out index subsets for block Jackknife resampling.
 If `length(index)` is not divisible by `block_size`, the initial remainder is
 dropped before making equal-size blocks.
 """
-function jk_block_index_set(index::AbstractVector{<:Integer}, block_size::Integer)
+function jk_block_index_set(index::AbstractVector{<:Integer}, block_size)
     N = length(index)
     first_kept, nblocks = _block_first_kept(N, block_size)
 
@@ -238,7 +274,7 @@ function jk_block_index_set(index::AbstractVector{<:Integer}, block_size::Intege
     return subsets
 end
 
-function _block_jackknife_meanerror(input_data::AbstractVector{<:Real}, block_size::Integer, statistic::Function)
+function _block_jackknife_meanerror(input_data::AbstractVector{<:Real}, block_size, statistic::Function)
     N = length(input_data)
     first_kept, nblocks = _block_first_kept(N, block_size)
 
@@ -258,9 +294,10 @@ end
     jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size::Integer) -> Tuple{Real, Float64}
 
 Calculates the mean and block Jackknife error for the given data array.
+Equivalent to `jk_meanerror(input_data; block=block_size)`.
 """
-function jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size::Integer)
-    return _block_jackknife_meanerror(input_data, block_size, mean)
+function jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size)
+    return jk_meanerror(input_data; block=block_size)
 end
 
 """
@@ -268,18 +305,23 @@ end
 
 Calculates a custom statistic and its block Jackknife error.
 `func` must map one sample vector to one scalar observable.
+Equivalent to `jk_meanerror(input_data, func; block=block_size)`.
 """
-function jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size::Integer, func::Function)
-    return _block_jackknife_meanerror(input_data, block_size, func)
+function jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size, func::Function)
+    return jk_meanerror(input_data, func; block=block_size)
 end
 
 """
     jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size::Integer, KEY::String) -> Tuple{Real, Float64}
 
 Calculates a predefined observable and its block Jackknife error.
+Equivalent to `jk_meanerror(input_data, KEY; block=block_size)`.
+
+Uses the same keys as `jk_meanerror`. `"binder"` and `"bin"` mean the Binder
+ratio, defined in JkTools as `mean(x .^ 4) / mean(x .^ 2)^2`.
 """
-function jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size::Integer, KEY::String)
-    return _block_jackknife_meanerror(input_data, block_size, _observable_function(KEY))
+function jk_block_meanerror(input_data::AbstractVector{<:Real}, block_size, KEY::String)
+    return jk_meanerror(input_data, KEY; block=block_size)
 end
 
 function _validate_histogram_edges(edges::AbstractVector{<:Real})
@@ -406,7 +448,7 @@ function _jackknife_histogram_from_counts(counts::Matrix{Float64}, edges::Abstra
     return _histogram_result(edges, central, errors)
 end
 
-function _block_jackknife_histogram_from_counts(counts::Matrix{Float64}, edges::AbstractVector{<:Real}, block_size::Integer, scale::Real, density::Bool)
+function _block_jackknife_histogram_from_counts(counts::Matrix{Float64}, edges::AbstractVector{<:Real}, block_size, scale::Real, density::Bool)
     nsamples, nbins = size(counts)
     first_kept, nblocks = _block_first_kept(nsamples, block_size)
 
@@ -427,10 +469,18 @@ function _block_jackknife_histogram_from_counts(counts::Matrix{Float64}, edges::
     return _histogram_result(edges, central, errors)
 end
 
+function _jackknife_or_block_histogram_from_counts(counts::Matrix{Float64}, edges::AbstractVector{<:Real}, scale::Real, density::Bool, block)
+    block_size = _optional_block_size(block)
+    return block_size === nothing ?
+        _jackknife_histogram_from_counts(counts, edges, scale, density) :
+        _block_jackknife_histogram_from_counts(counts, edges, block_size, scale, density)
+end
+
 """
-    jk_histogram(samples::AbstractVector, edges::AbstractVector{<:Real}; scale::Real=1.0, density::Bool=false)
+    jk_histogram(samples::AbstractVector, edges::AbstractVector{<:Real}; scale::Real=1.0, density::Bool=false, block=nothing)
 
 Calculates histogram bin values and Jackknife errors.
+Set `block` to an integer to use block Jackknife errors.
 
 Each element of `samples` is treated as one Jackknife sample. An element may be a
 single real number or a vector of real numbers, such as eigenvalues measured on
@@ -441,26 +491,28 @@ The result is a named tuple with `edges`, `centers`, `values`, and `errors`.
 `scale` multiplies both values and errors. If `density=true`, values and errors
 are also divided by the bin widths.
 """
-function jk_histogram(samples::AbstractVector, edges::AbstractVector{<:Real}; scale::Real=1.0, density::Bool=false)
+function jk_histogram(samples::AbstractVector, edges::AbstractVector{<:Real}; scale::Real=1.0, density::Bool=false, block=nothing)
     counts = _sample_histogram_counts(samples, edges)
-    return _jackknife_histogram_from_counts(counts, edges, scale, density)
+    return _jackknife_or_block_histogram_from_counts(counts, edges, scale, density, block)
 end
 
 """
-    jk_histogram(samples::AbstractVector; bins=10, scale::Real=1.0, density::Bool=false)
+    jk_histogram(samples::AbstractVector; bins=10, scale::Real=1.0, density::Bool=false, block=nothing)
 
 Histogram-like keyword API for `jk_histogram`. `bins` may be a positive integer
-or a vector of bin edges.
+or a vector of bin edges. Set `block` to an integer to use block Jackknife
+errors.
 """
-function jk_histogram(samples::AbstractVector; bins=10, scale::Real=1.0, density::Bool=false)
+function jk_histogram(samples::AbstractVector; bins=10, scale::Real=1.0, density::Bool=false, block=nothing)
     edges = _histogram_edges_from_bins(samples, bins)
-    return jk_histogram(samples, edges; scale=scale, density=density)
+    return jk_histogram(samples, edges; scale=scale, density=density, block=block)
 end
 
 """
     jk_hist(args...; kwargs...)
 
-Short alias for `jk_histogram`, intended for hist-like usage.
+Short alias for `jk_histogram`, intended for hist-like usage. For block
+Jackknife, use `jk_hist(samples; bins=20, block=2)`.
 """
 function jk_hist(args...; kwargs...)
     return jk_histogram(args...; kwargs...)
@@ -470,13 +522,13 @@ end
     jk_block_histogram(samples::AbstractVector, edges::AbstractVector{<:Real}, block_size::Integer; scale::Real=1.0, density::Bool=false)
 
 Calculates histogram bin values and block Jackknife errors.
+Equivalent to `jk_histogram(samples, edges; block=block_size)`.
 
 If the number of samples is not divisible by `block_size`, the initial remainder
 is dropped before making equal-size blocks.
 """
-function jk_block_histogram(samples::AbstractVector, edges::AbstractVector{<:Real}, block_size::Integer; scale::Real=1.0, density::Bool=false)
-    counts = _sample_histogram_counts(samples, edges)
-    return _block_jackknife_histogram_from_counts(counts, edges, block_size, scale, density)
+function jk_block_histogram(samples::AbstractVector, edges::AbstractVector{<:Real}, block_size; scale::Real=1.0, density::Bool=false)
+    return jk_histogram(samples, edges; scale=scale, density=density, block=block_size)
 end
 
 """
@@ -484,16 +536,17 @@ end
 
 Histogram-like keyword API for block Jackknife histograms. `bins` may be a
 positive integer or a vector of bin edges.
+Equivalent to `jk_histogram(samples; bins=bins, block=block_size)`.
 """
-function jk_block_histogram(samples::AbstractVector, block_size::Integer; bins=10, scale::Real=1.0, density::Bool=false)
-    edges = _histogram_edges_from_bins(samples, bins)
-    return jk_block_histogram(samples, edges, block_size; scale=scale, density=density)
+function jk_block_histogram(samples::AbstractVector, block_size; bins=10, scale::Real=1.0, density::Bool=false)
+    return jk_histogram(samples; bins=bins, scale=scale, density=density, block=block_size)
 end
 
 """
     jk_block_hist(args...; kwargs...)
 
-Short alias for `jk_block_histogram`, intended for hist-like usage.
+Short alias for `jk_block_histogram`, intended for hist-like usage. The
+preferred unified form is `jk_hist(samples; bins=20, block=2)`.
 """
 function jk_block_hist(args...; kwargs...)
     return jk_block_histogram(args...; kwargs...)

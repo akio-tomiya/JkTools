@@ -14,7 +14,7 @@ eigenvalues_by_config = [
 block_size = 4
 bins = collect(0.0:0.005:0.06)
 
-hist = jk_block_hist(eigenvalues_by_config, block_size; bins=bins, density=true)
+hist = jk_hist(eigenvalues_by_config; bins=bins, block=block_size, density=true)
 
 bar(
     hist.centers,
