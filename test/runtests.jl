@@ -2,6 +2,10 @@ using JkTools
 using Statistics
 using Test
 
+function normalize_doc_whitespace(text::AbstractString)
+    return replace(text, r"\s+" => " ")
+end
+
 function jackknife_expected(data::AbstractVector, statistic::Function)
     n = length(data)
     n >= 2 || throw(ArgumentError("jackknife error requires at least two data points"))
@@ -296,7 +300,7 @@ end
         @test !occursin("日本語", help_text)
         @test !occursin("クイックヘルプ", help_text)
 
-        meanerror_doc = repr("text/plain", @doc jk_meanerror(::AbstractVector{<:Real}, ::String))
+        meanerror_doc = normalize_doc_whitespace(repr("text/plain", @doc jk_meanerror(::AbstractVector{<:Real}, ::String)))
         @test occursin("Binder ratio", meanerror_doc)
         @test occursin("mean(x .^ 4) / mean(x .^ 2)^2", meanerror_doc)
 
