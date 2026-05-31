@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="420" viewBox="0 0 820 420">
+  <rect width="100%" height="100%" fill="white"/>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; fill: #222; }
+    .title { font-size: 20px; font-weight: bold; }
+    .label { font-size: 13px; }
+    .tick { font-size: 11px; fill: #555; }
+    .axis { stroke: #222; stroke-width: 1.2; }
+    .grid { stroke: #ddd; stroke-width: 1; }
+  </style>
+<text class="title" x="410" y="32" text-anchor="middle">Ordinary Jackknife: leave one measurement out</text>
+<text class="label" x="410" y="62" text-anchor="middle">Each Jackknife sample removes one data point and keeps the rest.</text>
+<text class="label" x="195" y="114" text-anchor="end">full data</text>
+<rect x="220" y="92" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="247.0" y="114" text-anchor="middle">x1</text>
+<rect x="288" y="92" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="315.0" y="114" text-anchor="middle">x2</text>
+<rect x="356" y="92" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="383.0" y="114" text-anchor="middle">x3</text>
+<rect x="424" y="92" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="451.0" y="114" text-anchor="middle">x4</text>
+<rect x="492" y="92" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="519.0" y="114" text-anchor="middle">x5</text>
+<text class="label" x="195" y="166" text-anchor="end">sample 1</text>
+<rect x="220" y="144" width="54" height="34" rx="4" fill="#f5f5f5" opacity="1.0" stroke="#777" stroke-width="1.2" stroke-dasharray="5,4"/>
+<text class="label" x="247.0" y="166" text-anchor="middle">x1</text>
+<line x1="230" y1="152" x2="264" y2="170" stroke="#777" stroke-width="1.6"/>
+<line x1="264" y1="152" x2="230" y2="170" stroke="#777" stroke-width="1.6"/>
+<rect x="288" y="144" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="315.0" y="166" text-anchor="middle">x2</text>
+<rect x="356" y="144" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="383.0" y="166" text-anchor="middle">x3</text>
+<rect x="424" y="144" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="451.0" y="166" text-anchor="middle">x4</text>
+<rect x="492" y="144" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="519.0" y="166" text-anchor="middle">x5</text>
+<text class="label" x="195" y="218" text-anchor="end">sample 2</text>
+<rect x="220" y="196" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="247.0" y="218" text-anchor="middle">x1</text>
+<rect x="288" y="196" width="54" height="34" rx="4" fill="#f5f5f5" opacity="1.0" stroke="#777" stroke-width="1.2" stroke-dasharray="5,4"/>
+<text class="label" x="315.0" y="218" text-anchor="middle">x2</text>
+<line x1="298" y1="204" x2="332" y2="222" stroke="#777" stroke-width="1.6"/>
+<line x1="332" y1="204" x2="298" y2="222" stroke="#777" stroke-width="1.6"/>
+<rect x="356" y="196" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="383.0" y="218" text-anchor="middle">x3</text>
+<rect x="424" y="196" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="451.0" y="218" text-anchor="middle">x4</text>
+<rect x="492" y="196" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="519.0" y="218" text-anchor="middle">x5</text>
+<text class="label" x="195" y="270" text-anchor="end">sample 3</text>
+<rect x="220" y="248" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="247.0" y="270" text-anchor="middle">x1</text>
+<rect x="288" y="248" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="315.0" y="270" text-anchor="middle">x2</text>
+<rect x="356" y="248" width="54" height="34" rx="4" fill="#f5f5f5" opacity="1.0" stroke="#777" stroke-width="1.2" stroke-dasharray="5,4"/>
+<text class="label" x="383.0" y="270" text-anchor="middle">x3</text>
+<line x1="366" y1="256" x2="400" y2="274" stroke="#777" stroke-width="1.6"/>
+<line x1="400" y1="256" x2="366" y2="274" stroke="#777" stroke-width="1.6"/>
+<rect x="424" y="248" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="451.0" y="270" text-anchor="middle">x4</text>
+<rect x="492" y="248" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="519.0" y="270" text-anchor="middle">x5</text>
+<text class="label" x="195" y="322" text-anchor="end">sample 4</text>
+<rect x="220" y="300" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="247.0" y="322" text-anchor="middle">x1</text>
+<rect x="288" y="300" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="315.0" y="322" text-anchor="middle">x2</text>
+<rect x="356" y="300" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="383.0" y="322" text-anchor="middle">x3</text>
+<rect x="424" y="300" width="54" height="34" rx="4" fill="#f5f5f5" opacity="1.0" stroke="#777" stroke-width="1.2" stroke-dasharray="5,4"/>
+<text class="label" x="451.0" y="322" text-anchor="middle">x4</text>
+<line x1="434" y1="308" x2="468" y2="326" stroke="#777" stroke-width="1.6"/>
+<line x1="468" y1="308" x2="434" y2="326" stroke="#777" stroke-width="1.6"/>
+<rect x="492" y="300" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="519.0" y="322" text-anchor="middle">x5</text>
+<text class="label" x="195" y="374" text-anchor="end">sample 5</text>
+<rect x="220" y="352" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="247.0" y="374" text-anchor="middle">x1</text>
+<rect x="288" y="352" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="315.0" y="374" text-anchor="middle">x2</text>
+<rect x="356" y="352" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="383.0" y="374" text-anchor="middle">x3</text>
+<rect x="424" y="352" width="54" height="34" rx="4" fill="#6aaed6" opacity="1.0" stroke="#333" stroke-width="1.2"/>
+<text class="label" x="451.0" y="374" text-anchor="middle">x4</text>
+<rect x="492" y="352" width="54" height="34" rx="4" fill="#f5f5f5" opacity="1.0" stroke="#777" stroke-width="1.2" stroke-dasharray="5,4"/>
+<text class="label" x="519.0" y="374" text-anchor="middle">x5</text>
+<line x1="502" y1="360" x2="536" y2="378" stroke="#777" stroke-width="1.6"/>
+<line x1="536" y1="360" x2="502" y2="378" stroke="#777" stroke-width="1.6"/>
+<text class="tick" x="410" y="392" text-anchor="middle">The estimator is evaluated on each leave-one-out sample.</text>
+</svg>

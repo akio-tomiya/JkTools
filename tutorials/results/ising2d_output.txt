@@ -1,0 +1,35 @@
+2D Ising Jackknife tutorial
+L = 16, beta = 0.44
+update = heat bath
+measurements = 800, measure_every = 5
+
+Ordinary Jackknife: primary observables
+energy per spin                  -1.4415625 +/- 0.00599147
+abs magnetization per spin       0.70786133 +/- 0.00672452
+
+Ordinary Jackknife: secondary observables
+susceptibility                   4.76521108 +/- 0.439192
+specific heat                    1.42153704 +/- 0.0716418
+Binder ratio                     1.16003095 +/- 0.01108673
+
+Integrated autocorrelation time of |m|: 9.016 measurement intervals (window = 22)
+Using block_size = 19
+
+Block Jackknife
+energy per spin                  -1.44122024 +/- 0.01581994
+abs magnetization per spin       0.70750117 +/- 0.02269484
+susceptibility                   4.7692254 +/- 1.37628011
+specific heat                    1.41974489 +/- 0.13365451
+Binder ratio                     1.16024041 +/- 0.03712636
+
+Histogram of |m| with block Jackknife error bars
+center         density        error
+0.04817708     0.21731749     0.10578113
+0.12890625     0.20179481     0.10994915
+0.20963542     0.18627213     0.08686748
+0.29036458     0.23284016     0.09379628
+0.37109375     0.18627213     0.07464125
+0.45182292     0.37254426     0.1021636
+0.53255208     0.60538443     0.11414517
+0.61328125     1.27285957     0.1776817
+...

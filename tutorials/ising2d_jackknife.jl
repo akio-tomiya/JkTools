@@ -1,0 +1,292 @@
+module Ising2DTutorial
+
+using JkTools
+using Statistics
+
+export analyze_measurements, integrated_autocorrelation_time, main, run_ising2d, write_summary
+
+mutable struct XorShift64Star
+    state::UInt64
+end
+
+function XorShift64Star(seed::Integer)
+    state = UInt64(seed)
+    state == 0 && (state = 0x9e3779b97f4a7c15)
+    return XorShift64Star(state)
+end
+
+function rand_uint!(rng::XorShift64Star)
+    x = rng.state
+    x = xor(x, x >> 12)
+    x = xor(x, x << 25)
+    x = xor(x, x >> 27)
+    rng.state = x
+    return x * 0x2545f4914f6cdd1d
+end
+
+function rand_float!(rng::XorShift64Star)
+    return Float64(rand_uint!(rng) >> 11) / 9007199254740992.0
+end
+
+function rand_int!(rng::XorShift64Star, n::Integer)
+    n >= 1 || throw(ArgumentError("n must be positive"))
+    return Int((rand_uint!(rng) >> 32) % UInt64(n)) + 1
+end
+
+function initial_spins(L::Integer, rng::XorShift64Star)
+    L >= 2 || throw(ArgumentError("L must be at least 2"))
+    spins = Matrix{Int8}(undef, L, L)
+    for i in 1:L, j in 1:L
+        spins[i, j] = rand_float!(rng) < 0.5 ? Int8(-1) : Int8(1)
+    end
+    return spins
+end
+
+function energy_per_spin(spins::AbstractMatrix{<:Integer})
+    Lx, Ly = size(spins)
+    Lx == Ly || throw(ArgumentError("spins must be a square matrix"))
+
+    energy = 0
+    for i in 1:Lx
+        ip = i == Lx ? 1 : i + 1
+        for j in 1:Ly
+            jp = j == Ly ? 1 : j + 1
+            energy -= spins[i, j] * (spins[ip, j] + spins[i, jp])
+        end
+    end
+
+    return energy / length(spins)
+end
+
+function magnetization_per_spin(spins::AbstractMatrix{<:Integer})
+    return sum(spins) / length(spins)
+end
+
+function heat_bath_sweep!(spins::AbstractMatrix{Int8}, beta::Real, rng::XorShift64Star)
+    L = size(spins, 1)
+    size(spins, 2) == L || throw(ArgumentError("spins must be a square matrix"))
+
+    for _ in 1:length(spins)
+        i = rand_int!(rng, L)
+        j = rand_int!(rng, L)
+        ip = i == L ? 1 : i + 1
+        im = i == 1 ? L : i - 1
+        jp = j == L ? 1 : j + 1
+        jm = j == 1 ? L : j - 1
+
+        neighbor_sum = spins[ip, j] + spins[im, j] + spins[i, jp] + spins[i, jm]
+        probability_plus = 1 / (1 + exp(-2 * beta * neighbor_sum))
+
+        spins[i, j] = rand_float!(rng) < probability_plus ? Int8(1) : Int8(-1)
+    end
+
+    return spins
+end
+
+function run_ising2d(;
+    L::Integer=16,
+    beta::Real=0.44,
+    therm_sweeps::Integer=500,
+    sweeps::Integer=4000,
+    measure_every::Integer=5,
+    seed::Integer=20260515,
+)
+    L >= 2 || throw(ArgumentError("L must be at least 2"))
+    beta > 0 || throw(ArgumentError("beta must be positive"))
+    therm_sweeps >= 0 || throw(ArgumentError("therm_sweeps must be non-negative"))
+    sweeps >= 1 || throw(ArgumentError("sweeps must be positive"))
+    measure_every >= 1 || throw(ArgumentError("measure_every must be positive"))
+    seed >= 0 || throw(ArgumentError("seed must be non-negative"))
+
+    rng = XorShift64Star(seed)
+    spins = initial_spins(L, rng)
+
+    for _ in 1:therm_sweeps
+        heat_bath_sweep!(spins, beta, rng)
+    end
+
+    nmeasure = div(sweeps, measure_every)
+    nmeasure >= 2 || throw(ArgumentError("at least two measurements are required"))
+
+    energies = Float64[]
+    magnetizations = Float64[]
+    sizehint!(energies, nmeasure)
+    sizehint!(magnetizations, nmeasure)
+
+    for sweep in 1:sweeps
+        heat_bath_sweep!(spins, beta, rng)
+        if sweep % measure_every == 0
+            push!(energies, energy_per_spin(spins))
+            push!(magnetizations, magnetization_per_spin(spins))
+        end
+    end
+
+    return (
+        L=Int(L),
+        beta=Float64(beta),
+        therm_sweeps=Int(therm_sweeps),
+        sweeps=Int(sweeps),
+        measure_every=Int(measure_every),
+        energies=energies,
+        magnetizations=magnetizations,
+        abs_magnetizations=abs.(magnetizations),
+    )
+end
+
+function autocorrelation(series::AbstractVector{<:Real}, max_lag::Integer)
+    n = length(series)
+    n >= 2 || throw(ArgumentError("autocorrelation requires at least two samples"))
+    0 <= max_lag <= n - 1 || throw(ArgumentError("max_lag must satisfy 0 <= max_lag <= length(series) - 1"))
+
+    centered = Float64.(series) .- mean(series)
+    variance = mean(x -> x^2, centered)
+    result = zeros(Float64, max_lag + 1)
+    result[1] = 1.0
+    variance == 0 && return result
+
+    for lag in 1:max_lag
+        total = 0.0
+        for i in 1:n-lag
+            total += centered[i] * centered[i + lag]
+        end
+        result[lag + 1] = total / ((n - lag) * variance)
+    end
+
+    return result
+end
+
+function integrated_autocorrelation_time(series::AbstractVector{<:Real}; max_lag::Integer=min(length(series) - 1, 100))
+    rho = autocorrelation(series, max_lag)
+    tau_int = 0.5
+    window = 0
+
+    for lag in 1:max_lag
+        rho_lag = rho[lag + 1]
+        rho_lag <= 0 && break
+        tau_int += rho_lag
+        window = lag
+    end
+
+    return (tau_int=tau_int, window=window, rho=rho)
+end
+
+function suggested_block_size(tau_int::Real, nsamples::Integer)
+    nsamples >= 2 || throw(ArgumentError("at least two samples are required"))
+    max_block_size = max(1, div(nsamples, 2))
+    return min(max(2, ceil(Int, 2 * tau_int)), max_block_size)
+end
+
+function analyze_measurements(measurements; block_size=nothing, hist_bins::Integer=12)
+    energies = measurements.energies
+    magnetizations = measurements.magnetizations
+    abs_magnetizations = measurements.abs_magnetizations
+    nspins = measurements.L^2
+    beta = measurements.beta
+
+    tau_abs_m = integrated_autocorrelation_time(abs_magnetizations)
+    chosen_block_size = block_size === nothing ?
+        suggested_block_size(tau_abs_m.tau_int, length(abs_magnetizations)) :
+        block_size
+
+    susceptibility = x -> nspins * beta * var(x, corrected=false)
+    specific_heat = x -> nspins * beta^2 * var(x, corrected=false)
+
+    return (
+        primary=(
+            energy=jk_meanerror(energies),
+            abs_magnetization=jk_meanerror(abs_magnetizations),
+        ),
+        secondary=(
+            susceptibility=jk_meanerror(magnetizations, susceptibility),
+            specific_heat=jk_meanerror(energies, specific_heat),
+            binder_ratio=jk_meanerror(magnetizations, "binder"),
+        ),
+        autocorrelation=(
+            abs_magnetization=tau_abs_m,
+        ),
+        block_size=chosen_block_size,
+        block=(
+            energy=jk_meanerror(energies; block=chosen_block_size),
+            abs_magnetization=jk_meanerror(abs_magnetizations; block=chosen_block_size),
+            susceptibility=jk_meanerror(magnetizations, susceptibility; block=chosen_block_size),
+            specific_heat=jk_meanerror(energies, specific_heat; block=chosen_block_size),
+            binder_ratio=jk_meanerror(magnetizations, "binder"; block=chosen_block_size),
+        ),
+        histogram=jk_hist(abs_magnetizations; bins=hist_bins, block=chosen_block_size, density=true),
+    )
+end
+
+function fmt(x::Real; digits::Integer=8)
+    return string(round(Float64(x); digits=digits))
+end
+
+function print_estimate(io::IO, label::AbstractString, estimate)
+    println(io, rpad(label, 32), " ", fmt(estimate[1]), " +/- ", fmt(estimate[2]))
+end
+
+function print_estimate(label::AbstractString, estimate)
+    return print_estimate(stdout, label, estimate)
+end
+
+function print_histogram(io::IO, hist; max_rows::Integer=8)
+    rows = min(max_rows, length(hist.centers))
+    println(io, "center         density        error")
+    for i in 1:rows
+        println(io, rpad(fmt(hist.centers[i]), 15), rpad(fmt(hist.values[i]), 15), fmt(hist.errors[i]))
+    end
+    length(hist.centers) > rows && println(io, "...")
+end
+
+function print_histogram(hist; max_rows::Integer=8)
+    return print_histogram(stdout, hist; max_rows=max_rows)
+end
+
+function write_summary(io::IO, measurements, analysis)
+    println(io, "2D Ising Jackknife tutorial")
+    println(io, "L = $(measurements.L), beta = $(measurements.beta)")
+    println(io, "update = heat bath")
+    println(io, "measurements = $(length(measurements.energies)), measure_every = $(measurements.measure_every)")
+    println(io)
+
+    println(io, "Ordinary Jackknife: primary observables")
+    print_estimate(io, "energy per spin", analysis.primary.energy)
+    print_estimate(io, "abs magnetization per spin", analysis.primary.abs_magnetization)
+    println(io)
+
+    println(io, "Ordinary Jackknife: secondary observables")
+    print_estimate(io, "susceptibility", analysis.secondary.susceptibility)
+    print_estimate(io, "specific heat", analysis.secondary.specific_heat)
+    print_estimate(io, "Binder ratio", analysis.secondary.binder_ratio)
+    println(io)
+
+    tau = analysis.autocorrelation.abs_magnetization
+    println(io, "Integrated autocorrelation time of |m|: ", fmt(tau.tau_int; digits=3), " measurement intervals (window = ", tau.window, ")")
+    println(io, "Using block_size = $(analysis.block_size)")
+    println(io)
+
+    println(io, "Block Jackknife")
+    print_estimate(io, "energy per spin", analysis.block.energy)
+    print_estimate(io, "abs magnetization per spin", analysis.block.abs_magnetization)
+    print_estimate(io, "susceptibility", analysis.block.susceptibility)
+    print_estimate(io, "specific heat", analysis.block.specific_heat)
+    print_estimate(io, "Binder ratio", analysis.block.binder_ratio)
+    println(io)
+
+    println(io, "Histogram of |m| with block Jackknife error bars")
+    print_histogram(io, analysis.histogram)
+
+    return nothing
+end
+
+function main()
+    measurements = run_ising2d()
+    analysis = analyze_measurements(measurements)
+    write_summary(stdout, measurements, analysis)
+    return nothing
+end
+
+end # module
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    Ising2DTutorial.main()
+end

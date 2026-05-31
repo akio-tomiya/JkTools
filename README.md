@@ -236,6 +236,19 @@ hist = jk_hist(eigenvalues_by_config; bins=bins, block=block_size, density=true)
 bar(hist.centers, hist.values; yerror=hist.errors)
 ```
 
+## Tutorials
+
+The `tutorials/` directory contains a standalone 2D Ising model tutorial. It
+demonstrates heat-bath updates, statistical errors, error propagation,
+ordinary Jackknife, secondary observables, autocorrelation functions,
+autocorrelation time, block Jackknife, and histograms with error bars. The
+tutorial includes a saved execution log and SVG figures.
+
+```bash
+julia --project=. tutorials/ising2d_jackknife.jl
+julia --project=. tutorials/make_tutorial_artifacts.jl
+```
+
 ## Input Validation
 
 Ordinary Jackknife requires at least two data points. Block Jackknife requires a

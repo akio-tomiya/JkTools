@@ -2,6 +2,8 @@ using JkTools
 using Statistics
 using Test
 
+include(joinpath(@__DIR__, "..", "tutorials", "ising2d_jackknife.jl"))
+
 function normalize_doc_whitespace(text::AbstractString)
     return replace(text, r"\s+" => " ")
 end
@@ -307,5 +309,28 @@ end
         doc_text = repr("text/plain", @doc jk_hist)
         @test occursin("Short alias", doc_text)
         @test !occursin("日本語", doc_text)
+    end
+
+    @testset "tutorial smoke test" begin
+        measurements = Ising2DTutorial.run_ising2d(;
+            L=4,
+            beta=0.3,
+            therm_sweeps=4,
+            sweeps=12,
+            measure_every=1,
+            seed=1234,
+        )
+
+        @test length(measurements.energies) == 12
+        @test length(measurements.magnetizations) == 12
+
+        analysis = Ising2DTutorial.analyze_measurements(measurements; block_size=2, hist_bins=4)
+
+        @test analysis.block_size == 2
+        @test isfinite(analysis.primary.energy[1])
+        @test isfinite(analysis.secondary.susceptibility[1])
+        @test isfinite(analysis.autocorrelation.abs_magnetization.tau_int)
+        @test length(analysis.histogram.centers) == 4
+        @test length(analysis.histogram.errors) == 4
     end
 end

@@ -236,6 +236,18 @@ hist = jk_hist(eigenvalues_by_config; bins=bins, block=block_size, density=true)
 bar(hist.centers, hist.values; yerror=hist.errors)
 ```
 
+## チュートリアル
+
+`tutorials/` directory に、standalone な 2D Ising model tutorial を置いて
+います。熱浴法、統計誤差、誤差の伝播、通常 Jackknife、secondary
+observable、自己相関関数、自己相関時間、block Jackknife、誤差棒つき
+histogram を一通り試せます。実行結果の log と SVG 図も含めています。
+
+```bash
+julia --project=. tutorials/ising2d_jackknife.jl
+julia --project=. tutorials/make_tutorial_artifacts.jl
+```
+
 ## 入力の検証
 
 通常の Jackknife には少なくとも 2 点のデータが必要です。ブロック
